@@ -21,23 +21,26 @@ library(rpart)
 library(rpart.plot)
 library(caret)
 library(randomForest)
+library(plyr)
+library(forcats)
+library(dplyr)
 memory.limit(23000)
 # data4<-test.data %>% slice(1:1000)
 
 # Use data as raw data, data1 is what I will in the project
-data<-read.csv("PDI__Police_Data_Initiative__Crime_Incidents.csv")
-data1<-data
-View(data1)
+# data<-read.csv("PDI__Police_Data_Initiative__Crime_Incidents.csv")
+# data1<-data
+# View(data1)
 
-# EDA
-str(data1)
-summary(data1)
+# 
+
 
 # Data Cleaning
 data1<-read.csv("PDI.csv")
 data1<-unique(data1)
 100*sort(prop.table(table(data1$OFFENSE)))
 unique(data1$OFFENSE)
+data1<-data1[which(data1$DST !=''),]
 data1<-data1[which(data1$DATE_TO !=''),]
 data1<-data1[which(data1$DATE_FROM !=''),]
 data1<-data1[which(data1$VICTIM_AGE !='UNKNOWN'),]
@@ -94,23 +97,87 @@ data1$Day<-day(data1$Crime_start_date)
 data1$Hour<-hour(timetable2$start)
 data1$Minutes<-minute(timetable2$start)
 
-# Drop not used columns
+# Drop the columns
 data1$INSTANCEID<-NULL
 data1$INCIDENT_NO<-NULL
 data1$DATE_REPORTED<-NULL
 data1$CLSD<-NULL
 data1$UCR<-NULL
-data1$DST<-NULL
-data1$BEAT<-NULL
+data1$DATE_FROM<-NULL
+data1$DATE_TO<-NULL
 data1$THEFT_CODE<-NULL
 data1$FLOOR<-NULL
 data1$SIDE<-NULL
 data1$OPENING<-NULL
-data1$HATE_BIAS<-NULL
-data1$RPT_AREA<-NULL
 data1$CPD_NEIGHBORHOOD<-NULL
 data1$SNA_NEIGHBORHOOD<-NULL
 data1$DATE_OF_CLEARANCE<-NULL
+data1$HOUR_FROM<-NULL
+data1$HOUR_TO<-NULL
+data1$Crime_End_date<-NULL
+data1$Crime_End_time<-NULL
+data1$ZIP<-NULL
+
+# EDA
+str(data1)
+summary(data1)
+
+# Barplot of OFFENSE
+count<-count(data1$OFFENSE)
+colnames(count) <- c('Crimes','Number')
+count<-as.data.frame(count)
+count %>%
+  mutate(name = fct_reorder(Crimes, Number)) %>%
+  ggplot( aes(x=Crimes, y=Number)) +
+  geom_bar(stat="identity", fill="#f68060",alpha=.8, width=.7) +
+  coord_flip() +
+  xlab("OFFENSE") +
+  theme_bw()
+
+# Barplot of District
+dst<-count(data1$DST)
+colnames(dst) <- c('DST','Number')
+dst<-as.data.frame(dst)
+dst %>%
+  mutate(name = fct_reorder(dst$DST, dst$Number)) %>%
+  ggplot( aes(x=DST, y=Number)) +
+  geom_bar(stat="identity", fill="#f68060",alpha=.8, width=.7) +
+  coord_flip() +
+  xlab("District") +
+  theme_bw()
+
+# 
+# par(oma = c(5, 1, 0, 0))
+# boxplot(data1$LONGITUDE_X~data1$OFFENSE, 
+#         xlab="OFFENSE", ylab="LONGITUDE", 
+#         col=topo.colors(7),xaxt="n")
+# # axis(1,at= 1:7,labels=LETTERS[1:7])
+# 
+# par(fig = c(0, 1, 0, 1), oma = c(0, 1, 0, 1), mar = c(0, 10, 0, 10), new = TRUE)
+# 
+# legend("bottom", c("AGGRAVATED MENACING","AGGRAVATED ROBBERY","ASSAULT","BURGLARY","CRIMINAL DAMAGING/ENDANGERING",
+#                    "FELONIOUS ASSAULT","THEFT"), xpd = TRUE, inset = c(0,-0.3), bty = "n", fill=topo.colors(7))
+
+# Boxplots of coordinate
+ggplot(data1, aes(x=OFFENSE, y=LONGITUDE_X)) + 
+  geom_boxplot(fill="slateblue", alpha=0.2)+ coord_flip()
+
+ggplot(data1, aes(x=OFFENSE, y=LATITUDE_X)) + 
+  geom_boxplot(fill="slateblue", alpha=0.2)+ coord_flip()
+
+# Barplot of Month
+ggplot(data1, aes(x=Month)) +geom_bar(fill="skyblue", alpha=0.7)+ coord_flip()
+ggplot(data1, aes(x=Day)) +geom_bar(fill="skyblue", alpha=0.7)+ coord_flip()
+ggplot(data1, aes(x=DAYOFWEEK)) +geom_bar(fill="skyblue", alpha=0.7)+ coord_flip()
+ggplot(data1, aes(x=VICTIM_GENDER)) +geom_bar(fill="skyblue", alpha=0.7)+ coord_flip()
+ggplot(data1, aes(x=VICTIM_AGE)) +geom_bar(fill="skyblue", alpha=0.7)+ coord_flip()
+ggplot(data1, aes(x=VICTIM_RACE)) +geom_bar(fill="skyblue", alpha=0.7)+ coord_flip()
+
+# Drop not used columns
+data1$DST<-NULL
+data1$BEAT<-NULL
+data1$HATE_BIAS<-NULL
+data1$RPT_AREA<-NULL
 data1$VICTIM_ETHNICITY<-NULL
 data1$SUSPECT_AGE<-NULL
 data1$SUSPECT_RACE<-NULL
@@ -120,14 +187,9 @@ data1$TOTALNUMBERVICTIMS<-NULL
 data1$TOTALSUSPECTS<-NULL
 data1$UCR_GROUP<-NULL
 data1$COMMUNITY_COUNCIL_NEIGHBORHOOD<-NULL
-data1$ZIP<-NULL
 data1$WEAPONS<-NULL
-data1$HOUR_FROM<-NULL
-data1$HOUR_TO<-NULL
-data1$Crime_End_date<-NULL
-data1$Crime_End_time<-NULL
-data1$DATE_FROM<-NULL
-data1$DATE_TO<-NULL
+
+
 
 # Select the columns as independent variabels
 levels(data1$OFFENSE)
@@ -247,13 +309,7 @@ print(mapAGGRAVATEDMENACING,vp=viewport(layout.pos.row=2,layout.pos.col=3))
 print(mapCRIMINAL,vp=viewport(layout.pos.row=3,layout.pos.col=1))
 print(mapFELONIOUSASSAULT,vp=viewport(layout.pos.row=3,layout.pos.col=2))
 
-# ggplot of variables
-ggplot(data1, aes(x=Month)) +geom_bar()
-ggplot(data1, aes(x=Day)) +geom_bar()
-ggplot(data1, aes(x=DAYOFWEEK)) +geom_bar()
-ggplot(data1, aes(x=VICTIM_GENDER)) +geom_bar()
-ggplot(data1, aes(x=VICTIM_AGE)) +geom_bar()
-ggplot(data1, aes(x=VICTIM_RACE)) +geom_bar()
+
 
 
 # Put the all the variables into data2
@@ -276,8 +332,6 @@ data2$Minutes <- as.numeric(data2$Minutes)
 View(data2)
 str(data2)
 levels(data2$OFFENSE)
-
-
 
 # train and test dataset split
 set.seed(1234)
